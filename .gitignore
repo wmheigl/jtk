@@ -15,3 +15,5 @@ build/
 
 core/out/
 demo/out/
+
+*.java~
