@@ -10,11 +10,10 @@ import java.util.EventObject;
  * location.
  *
  * @author Werner M. Heigl, NanoSeis
- * @version 2021.03.10
+ * @version 2021.03.11
  *
  * @see MouseTrackMode
  * @see MouseTrackListener
- * @see MosaicDemo2
  */
 public class MouseTrackEvent extends EventObject {
 
