@@ -192,24 +192,63 @@ public class AxisTics {
     return _mtic;
   }
 
+  /**
+   * Gets the primary custom tics.
+   * @return the primary custom tics.
+   */
   public double[] getCustomTicsPrimary() {
     return _customTicsPrimary;
   }
 
+  /**
+   * Gets the secondary custom tics.
+   * @return the secondary custom tics.
+   */
   public double[] getCustomTicsSecondary() {
     return _customTicsSecondary;
   }
 
+  /**
+   * Indicates the presence of primary custom tics.
+   * @retrun true if present, false otherwise.
+   */
+  public boolean hasCustomTicsPrimary() {
+    return _hasCustomTicsPrimary;
+  }
+
+  /**
+   * Indicates the presence of secondary custom tics.
+   * @retrun true if present, false otherwise.
+   */
+  public boolean hasCustomTicsSecondary() {
+    return _hasCustomTicsSecondary;
+  }
+
+  /**
+   * Sets custom primary tics and axis label.
+   * @param tics the primary custom tics.
+   * @param label the corresponding axis label.
+   */
   public void setCustomTicsPrimary(double[] tics, String label) {
     _customTicsPrimary = tics;
     _customLabelPrimary = label;
-    _haveCustomTics = true;
+    _hasCustomTicsPrimary = true;
   }
 
+  /**
+   * Sets custom secondary tics and axis label.
+   * @param tics the secondary custom tics.
+   * @param label the corresponding axis label.
+   */
   public void setCustomTicsSecondary(double[] tics, String label) {
-    this._customTicsSecondary = tics;
+    _customTicsSecondary = tics;
+    _customLabelSecondary = label;
+    _hasCustomTicsSecondary = true;
   }
 
+  /**
+   * Provides an informative string for {@code this}.
+   */
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("countMajor: " + _ntic + "\n");
@@ -219,7 +258,9 @@ public class AxisTics {
     sb.append("firstMajor: " + _ftic + "\n");
     sb.append("firstMinor: " + _fticMinor + "\n");
     sb.append("multiple: " + _mtic + "\n");
+    sb.append("customLabelPrimary: " + _customLabelPrimary + "\n");
     sb.append("customTicsPrimary: " + _customTicsPrimary + "\n");
+    sb.append("customLabelSeondary: " + _customLabelSecondary + "\n");
     sb.append("customTicsSeondary: " + _customTicsSecondary + "\n");
     return sb.toString();
   }
@@ -261,11 +302,12 @@ public class AxisTics {
   private int _nticMinor;
   private double _dticMinor;
   private double _fticMinor;
-  private boolean _haveCustomTics;        // indicates if custom tics are available
-  private double[] _customTicsPrimary;    // custom tics for the primary key
-  private double[] _customTicsSecondary;  // custom tics for the secondary key
-  private String _customLabelPrimary;     // label for the primary key
-  private String _customLabelSecondary;   // label for the secondary key
+  private boolean _hasCustomTicsPrimary;   // indicates if primary custom tics are available
+  private boolean _hasCustomTicsSecondary; // indicates if secondary custom tics are available
+  private double[] _customTicsPrimary;      // custom tics for the primary key
+  private double[] _customTicsSecondary;    // custom tics for the secondary key
+  private String _customLabelPrimary;       // label for the primary key
+  private String _customLabelSecondary;     // label for the secondary key
 
   private static final int[] _mult = {2,5,10};
 
