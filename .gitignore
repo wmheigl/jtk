@@ -16,4 +16,4 @@ build/
 core/out/
 demo/out/
 
-*.java~
+*.java~tags
