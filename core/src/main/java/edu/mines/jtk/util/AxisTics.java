@@ -260,8 +260,8 @@ public class AxisTics {
     sb.append("multiple: " + _mtic + "\n");
     sb.append("customLabelPrimary: " + _customLabelPrimary + "\n");
     sb.append("customTicsPrimary: " + _customTicsPrimary + "\n");
-    sb.append("customLabelSeondary: " + _customLabelSecondary + "\n");
-    sb.append("customTicsSeondary: " + _customTicsSecondary + "\n");
+    sb.append("customLabelSecondary: " + _customLabelSecondary + "\n");
+    sb.append("customTicsSecondary: " + _customTicsSecondary + "\n");
     return sb.toString();
   }
 
