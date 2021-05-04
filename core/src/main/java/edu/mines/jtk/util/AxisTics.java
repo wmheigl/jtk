@@ -45,8 +45,17 @@ import static edu.mines.jtk.util.MathPlus.*;
  * major and minor tics are available.
  * @author Dave Hale, Colorado School of Mines
  * @version 2004.12.14
+ * @author Werner M. Heigl, NanoSeis
+ * @version 2021.05.04
  */
 public class AxisTics {
+
+  /**
+   * No-arg constructor.
+   */
+  public AxisTics() {
+
+  }
 
   /**
    * Constructs axis tics for a specified major tic interval.
@@ -183,8 +192,65 @@ public class AxisTics {
     return _mtic;
   }
 
+  public double[] getCustomTicsPrimary() {
+    return _customTicsPrimary;
+  }
+
+  public double[] getCustomTicsSecondary() {
+    return _customTicsSecondary;
+  }
+
+  public void setCustomTicsPrimary(double[] tics, String label) {
+    _customTicsPrimary = tics;
+    _customLabelPrimary = label;
+    _haveCustomTics = true;
+  }
+
+  public void setCustomTicsSecondary(double[] tics, String label) {
+    this._customTicsSecondary = tics;
+  }
+
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("countMajor: " + _ntic + "\n");
+    sb.append("countMinor: " + _nticMinor + "\n");
+    sb.append("deltaMajor: " + _dtic + "\n");
+    sb.append("deltaMinor: " + _dticMinor + "\n");
+    sb.append("firstMajor: " + _ftic + "\n");
+    sb.append("firstMinor: " + _fticMinor + "\n");
+    sb.append("multiple: " + _mtic + "\n");
+    sb.append("customTicsPrimary: " + _customTicsPrimary + "\n");
+    sb.append("customTicsSeondary: " + _customTicsSecondary + "\n");
+    return sb.toString();
+  }
+
+  /**
+   * Updates axis tics for a specified end points and major tic interval.
+   * @param x1 the value at one end of the axis.
+   * @param x2 the value at the other end of the axis.
+   * @param dtic the major tic interval; a positive number.
+   */
+  public void updateTics(double x1, double x2, double dtic) {
+    double xmin = min(x1,x2);
+    double xmax = max(x1,x2);
+    xmin -= (xmax-xmin)*FLT_EPSILON;
+    xmax += (xmax-xmin)*FLT_EPSILON;
+    double d = abs(dtic);
+    double f = ceil(xmin/d)*d;
+    int n = 1+(int)((xmax-f)/d);
+    _xmin = xmin;
+    _xmax = xmax;
+    _ntic = n;
+    _dtic = d;
+    _ftic = f;
+    computeMultiple();
+    computeMinorTics();
+  }
+ 
   ///////////////////////////////////////////////////////////////////////////
   // private
+
+  private static final void trace(String s) { System.out.println(s); };
 
   private double _xmin;
   private double _xmax;
@@ -195,6 +261,11 @@ public class AxisTics {
   private int _nticMinor;
   private double _dticMinor;
   private double _fticMinor;
+  private boolean _haveCustomTics;        // indicates if custom tics are available
+  private double[] _customTicsPrimary;    // custom tics for the primary key
+  private double[] _customTicsSecondary;  // custom tics for the secondary key
+  private String _customLabelPrimary;     // label for the primary key
+  private String _customLabelSecondary;   // label for the secondary key
 
   private static final int[] _mult = {2,5,10};
 
