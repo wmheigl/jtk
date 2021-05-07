@@ -46,7 +46,7 @@ import static edu.mines.jtk.util.MathPlus.*;
  * @author Dave Hale, Colorado School of Mines
  * @version 2004.12.14
  * @author Werner M. Heigl, NanoSeis
- * @version 2021.05.04
+ * @version 2021.05.06
  */
 public class AxisTics {
 
@@ -190,6 +190,22 @@ public class AxisTics {
    */
   public int getMultiple() {
     return _mtic;
+  }
+
+  /**
+   * Gets the axis label for primary custom tics.
+   * @return the primary custom label.
+   */
+  public String getCustomLabelPrimary() {
+    return _customLabelPrimary;
+  }
+
+  /**
+   * Gets the axis label for secondary custom tics.
+   * @return the secondary custom label.
+   */
+  public String getCustomLabelSecondary() {
+    return _customLabelSecondary;
   }
 
   /**
