@@ -31,7 +31,7 @@ import static edu.mines.jtk.util.ArrayMath.*;
 /**
  * Demo of {@link edu.mines.jtk.mosaic.TileAxis} illustrating how to add
  * customary tic labels.
- * @author Werner M. Heigl
+ * @author Werner M. Heigl, NanoSeis
  * @version 2021.05.04
  */
 public class TileAxisDemo {
@@ -122,15 +122,12 @@ public class TileAxisDemo {
     b.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
-        trace("\nchangeTopAxisButton clicked");
-        // new stuff: set custom tic labels
-        // AxisTics instantiates during rendering, i.e. in Mosaic.doLayout()
-        double[] primary = new double[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-        double[] secondary = null;
-        topAxis.getAxisTics().setCustomTicsPrimary(primary, "New tics labels");
-        topAxis.setCustomTics(true);
+        double[] secondary = new double[] { 1,2,3,4,5,6,7,8,9,10,11 };
+        double[] primary = new double[] { 1,1,1,2,2,2,3,3,3,4,4 };
+        topAxis.getAxisTics().setCustomTicsPrimary(primary, "Primary Key");
+        topAxis.getAxisTics().setCustomTicsSecondary(secondary, "Secondary Key");
+        topAxis.setCustomTics(true);  // triggers repainting
         trace(topAxis.toString());
-        //topAxis.repaint();
       }
     });
     return b;
