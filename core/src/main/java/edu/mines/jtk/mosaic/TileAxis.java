@@ -1,17 +1,17 @@
 /****************************************************************************
-Copyright 2004, Colorado School of Mines and others.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+  Copyright 2004, Colorado School of Mines and others.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-****************************************************************************/
+ ****************************************************************************/
 package edu.mines.jtk.mosaic;
 
 import java.awt.*;
@@ -38,6 +38,8 @@ import edu.mines.jtk.util.StringUtil;
  * @author Dave Hale, Colorado School of Mines
  * @version 2004.12.27
  * @version 2005.12.23
+ * @author Werner M. Heigl, NanoSeis
+ * @version 2021.05.04
  */
 public class TileAxis extends IPanel {
   private static final long serialVersionUID = 1L;
@@ -227,8 +229,22 @@ public class TileAxis extends IPanel {
     return _axisTics;
   }
 
-  public void paintToRect(Graphics2D g2d, int x, int y, int w, int h) {
+  /**
+   * Turns on or off the use of custom axis tics.
+   */
+  public void setCustomTics(boolean b) {
+    if (_axisTics.hasCustomTicsPrimary()) { // at least primary custom tics available?
+      _useCustomTics = b;
+      if (_useCustomTics)
+        _label = ""; // avoid _label=null and ensure painting of custom axis labels in paintToRect()
+      revalidate();  // minimum height may change
+      repaint();
+    } else {
+      trace("TileAxis.setCustomTics() - at least primary custom tics must be available");
+    }
+  }
 
+  public void paintToRect(Graphics2D g2d, int x, int y, int w, int h) {
     // If no axis tics, paint nothing.
     if (_axisTics==null)
       return;
@@ -241,11 +257,11 @@ public class TileAxis extends IPanel {
     // Create graphics context.
     g2d = createGraphics(g2d,x,y,w,h);
     g2d.setRenderingHint(
-      RenderingHints.KEY_ANTIALIASING,
-      RenderingHints.VALUE_ANTIALIAS_ON);
+        RenderingHints.KEY_ANTIALIASING,
+        RenderingHints.VALUE_ANTIALIAS_ON);
     g2d.setRenderingHint(
-      RenderingHints.KEY_TEXT_ANTIALIASING,
-      RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        RenderingHints.KEY_TEXT_ANTIALIASING,
+        RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
     // Projector and transcaler from adjacent tile.
     Projector p = (isHorizontal()) ?
@@ -283,19 +299,20 @@ public class TileAxis extends IPanel {
     int mtic = _axisTics.getMultiple();
 
     // Minor tics. Skip major tics, which may not coincide, due to rounding.
-    int ktic = isLogScale?((LogAxisTics)_axisTics).getFirstMinorSkip()-1
-                          :(int)round((fticMajor-fticMinor)/dticMinor);
+    int ktic = isLogScale ?
+      ((LogAxisTics)_axisTics).getFirstMinorSkip()-1 :
+      (int)round((fticMajor-fticMinor)/dticMinor);
     for (int itic=0; itic<nticMinor; ++itic) {
       if (itic==ktic) {
         ktic += mtic;
       } else {
         double vtic = 0.0;
-        if(isLogScale){  // drawing log spaced minor tics ... always draws all 8 of them
+        if (isLogScale) {  // drawing log spaced minor tics ... always draws all 8 of them
           vtic = (itic+fticMinor*MathPlus.pow(10.0,-floor(MathPlus.log10(fticMinor)))-1)%9+1;
           vtic *= MathPlus.pow(10.0,(ktic-1)/mtic+floor(MathPlus.log10(fticMinor)));
-        }
-        else
+        } else {
           vtic = fticMinor+itic*dticMinor;
+        }
         double utic = p.u(vtic);
         if (isHorizontal) {
           x = t.x(utic);
@@ -319,12 +336,21 @@ public class TileAxis extends IPanel {
     int wsmax = 0;
     double tiny = 1.0e-6*abs(dticMajor);
     for (int itic=0; itic<nticMajor; ++itic) {
-      double vtic = isLogScale?fticMajor*Math.pow(10, itic) 
-              :fticMajor+itic*dticMajor;
+      double vtic = isLogScale ?
+        fticMajor*Math.pow(10, itic) :
+        fticMajor+itic*dticMajor;
       double utic = p.u(vtic);
       if (abs(vtic)<tiny)
         vtic = 0.0;
-      String stic = formatTic(vtic);
+      String stic = "";
+      String stic2 = "";
+      if (_useCustomTics) { // true if and only if primary custom tics exist
+        stic = formatTic(_axisTics.getCustomTicsSecondary()[itic]);
+        if (_axisTics.hasCustomTicsPrimary())
+          stic2 = formatTic(_axisTics.getCustomTicsPrimary()[itic]);
+      } else {
+        stic = formatTic(vtic);
+      }
       if (isHorizontal) {
         x = t.x(utic);
         if (isTop) {
@@ -340,7 +366,12 @@ public class TileAxis extends IPanel {
         int xs = max(0,min(w-ws,x-ws/2));
         int ys = y;
         g2d.drawString(stic,xs,ys);
-
+        if (stic2 != "") {
+          ws = fm.stringWidth(stic2);
+          xs = max(0,min(w-ws,x-ws/2));
+          ys -= 2*fh;
+          g2d.drawString(stic2,xs,ys);
+        }
       } else if (isVerticalRotated) {
         y = t.y(utic);
         if (isLeft) {
@@ -374,26 +405,41 @@ public class TileAxis extends IPanel {
         int ws = fm.stringWidth(stic);
         if (ws>wsmax)
           wsmax = ws;
-        int xs = (isLeft)?x-ws:x;
+        int xs = (isLeft) ? x-ws : x;
         int ys = max(fa,min(h-1,y+(int)round(0.3*fa)));
         g2d.drawString(stic,xs,ys);
       }
-      
-    }
+
+    } // end for-loop
 
     // Axis label.
-    if (_label!=null) {
+    if (_label!=null) { // _label="" if _useCustomTics=true
       if (isHorizontal) {
-        int wl = fm.stringWidth(_label);
-        int xl = max(0,min(w-wl,(w-wl)/2));
-        int yl = isTop?h-1-tl-fh-fd:tl+fh+fa;
-        g2d.drawString(_label,xl,yl);
+        if (_useCustomTics) { // true if and only if primary custom tics exist
+          String label = _axisTics.getCustomLabelSecondary();
+          int wl = fm.stringWidth(label);
+          int xl = max(0,min(w-wl,(w-wl)/2));
+          int yl = isTop ? h-1-tl-fh-fd : tl+fh+fa;
+          g2d.drawString(label,xl,yl);
+          if (_axisTics.hasCustomTicsPrimary()) {
+            label = _axisTics.getCustomLabelPrimary();
+            wl = fm.stringWidth(label);
+            xl = max(0,min(w-wl,(w-wl)/2));
+            yl = isTop ? h-1-tl-3*fh-fd : tl+fh+fa;
+            g2d.drawString(label,xl,yl);
+          }
+        } else {
+          int wl = fm.stringWidth(_label);
+          int xl = max(0,min(w-wl,(w-wl)/2));
+          int yl = isTop ? h-1-tl-fh-fd : tl+fh+fa;
+          g2d.drawString(_label,xl,yl);
+        }
       } else {
         int wl = fm.stringWidth(_label);
         //int xl = isLeft ?
         //  max(fa,w-1-tl-fd-wsmax-fd-fd-fl) :
         //  min(w-1-fd,tl+fd+wsmax+fa);
-        int xl = isLeft?fa+fd:w-1-fd-fd-fl;
+        int xl = isLeft ? fa+fd : w-1-fd-fd-fl;
         int yl = max(wl,min(h,(h+wl)/2));
         g2d.translate(xl,yl);
         g2d.rotate(-PI/2.0);
@@ -405,6 +451,27 @@ public class TileAxis extends IPanel {
 
     // Dispose graphics context.
     g2d.dispose();
+  }
+
+  /**
+   * Provides an informative string about {@code this}.
+   * @return the informative string.
+   */
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    String placement = (isTop() ? "Top" : (isRight() ? "Right" : "Left"));
+    sb.append("\n " + placement + " Axis:\n");
+    sb.append("-----------------\n");
+    sb.append(CLASS_NAME + '@' + Integer.toHexString(hashCode()) + "\n");
+    sb.append(_axisTics.toString());
+    Projector projector = null;
+    if (isHorizontal()) {
+      projector = getTile().getHorizontalProjector();
+    } else {
+      projector = getTile().getVerticalProjector();
+    }
+    sb.append(projector.toString() + "\n");
+    return sb.toString();
   }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -424,6 +491,7 @@ public class TileAxis extends IPanel {
     _mosaic = mosaic;
     _placement = placement;
     _index = index;
+    _axisTics = new AxisTics();
     //setBackground(Color.CYAN); // for debugging only
     mosaic.add(this);
   }
@@ -460,11 +528,10 @@ public class TileAxis extends IPanel {
     return width;
   }
   // Hack!
-  void setWidthMinimum(int widthMinimum) {
+  public void setWidthMinimum(int widthMinimum) {
     _widthMinimum = widthMinimum;
     revalidate();
   }
-  private int _widthMinimum;
 
   /**
    * Gets the height minimum for this axis. This height does not include 
@@ -475,8 +542,12 @@ public class TileAxis extends IPanel {
     int height;
     if (isHorizontal()) {
       height = fm.getHeight()+fm.getAscent();
-      if (_label!=null)
+      if (_label!=null) {
         height += fm.getHeight();
+        if (_useCustomTics) {
+          height += 2*fm.getHeight();
+        }
+      }
     } else {
       height = 50;
       if (_label!=null)
@@ -627,7 +698,8 @@ public class TileAxis extends IPanel {
     // computed above, but now for the currently visible range [v0,v1] 
     // of world coordinates. These axis tics are painted by this axis.
     if(p.getScale() == AxisScale.LINEAR)
-      _axisTics = new AxisTics(v0,v1,dtic);
+      //_axisTics = new AxisTics(v0,v1,dtic);
+      _axisTics.updateTics(v0,v1,dtic);
     else if (p.getScale()==AxisScale.LOG10) {
       double v0a = min(v0,v1);
       double v1a = max(v0,v1);
@@ -701,6 +773,9 @@ public class TileAxis extends IPanel {
   ///////////////////////////////////////////////////////////////////////////
   // private
 
+  private static final void trace(String s) { System.out.println(s); };
+  private static final String CLASS_NAME = TileAxis.class.getSimpleName();
+
   private Mosaic _mosaic;
   private Placement _placement;
   private boolean _isRotated;
@@ -713,7 +788,9 @@ public class TileAxis extends IPanel {
   private int _ticLabelWidth;
   private int _ticLabelHeight;
   private AxisTics _axisTics;
+  private boolean _useCustomTics;
   private boolean _revalidatePending;
+  private int _widthMinimum;
 
   /**
    * Called by this axis when it needs to be revalidated because a 
