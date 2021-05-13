@@ -34,12 +34,18 @@ import edu.mines.jtk.util.StringUtil;
  * <p>
  * Axis tics, tic annotations, and the (optional) axis label are painted 
  * using the tile axis font and foreground colors.
+ * <p>
+ * Customary primary key and secondary key axis tics can be provided for
+ * the top and left axis. This is often used when plotting seismic traces.
+ * To preserve screen real estate for the data view tics labels on the left
+ * and right axes are rotated and only the secondary key label is used on the
+ * right axis.
  *
  * @author Dave Hale, Colorado School of Mines
  * @version 2004.12.27
  * @version 2005.12.23
  * @author Werner M. Heigl, NanoSeis
- * @version 2021.05.04
+ * @version 2021.05.13
  */
 public class TileAxis extends IPanel {
   private static final long serialVersionUID = 1L;
@@ -215,10 +221,12 @@ public class TileAxis extends IPanel {
    * @param rotated true if rotated; false, otherwise.
    */
   public void setVerticalAxisRotated(boolean rotated) {
-    _isRotated = rotated;
-    if (updateAxisTics())
-      revalidate();
-    repaint();
+    if (isVertical()) {
+      _isRotated = rotated;
+      if (updateAxisTics())
+        revalidate();
+      repaint();
+    }
   }
 
   /**
@@ -229,19 +237,22 @@ public class TileAxis extends IPanel {
     return _axisTics;
   }
 
+  public boolean hasCustomTics() {
+    return _useCustomTics;
+  }
+
   /**
-   * Turns on or off the use of custom axis tics.
+   * Turns on or off the use of custom axis tics. It also sets the rotation
+   * of tic labels on the vertical axes to true.
+   * @param b true if custom tics, false otherwise
    */
   public void setCustomTics(boolean b) {
-    if (_axisTics.hasCustomTicsPrimary()) { // at least primary custom tics available?
-      _useCustomTics = b;
-      if (_useCustomTics)
-        _label = ""; // avoid _label=null and ensure painting of custom axis labels in paintToRect()
-      revalidate();  // minimum height may change
-      repaint();
-    } else {
-      trace("TileAxis.setCustomTics() - at least primary custom tics must be available");
-    }
+    _useCustomTics = b;
+    _isRotated = b;
+    if (_useCustomTics)
+      _label = ""; // avoid _label=null and ensure painting of custom axis labels in paintToRect()
+    revalidate();  // minimum height may change
+    repaint();
   }
 
   public void paintToRect(Graphics2D g2d, int x, int y, int w, int h) {
@@ -286,6 +297,7 @@ public class TileAxis extends IPanel {
     boolean isHorizontal = isHorizontal();
     boolean isTop = isTop();
     boolean isLeft = isLeft();
+    boolean isRight = isRight();
     boolean isVerticalRotated = isVerticalRotated();
     boolean isLogScale = (p.getScale().isLog());
 
@@ -342,12 +354,13 @@ public class TileAxis extends IPanel {
       double utic = p.u(vtic);
       if (abs(vtic)<tiny)
         vtic = 0.0;
-      String stic = "";
-      String stic2 = "";
+      String stic = ""; // default & secondary key tick label
+      String stic1 = ""; // primary key tick label
       if (_useCustomTics) { // true if and only if primary custom tics exist
-        stic = formatTic(_axisTics.getCustomTicsSecondary()[itic]);
+        int stride = (int)round(dticMajor);
+        stic = formatTic(_axisTics.getCustomTicsSecondary()[itic*stride]);
         if (_axisTics.hasCustomTicsPrimary())
-          stic2 = formatTic(_axisTics.getCustomTicsPrimary()[itic]);
+          stic1 = formatTic(_axisTics.getCustomTicsPrimary()[itic*stride]);
       } else {
         stic = formatTic(vtic);
       }
@@ -366,13 +379,13 @@ public class TileAxis extends IPanel {
         int xs = max(0,min(w-ws,x-ws/2));
         int ys = y;
         g2d.drawString(stic,xs,ys);
-        if (stic2 != "") {
-          ws = fm.stringWidth(stic2);
+        if (stic1 != "") {
+          ws = fm.stringWidth(stic1);
           xs = max(0,min(w-ws,x-ws/2));
           ys -= 2*fh;
-          g2d.drawString(stic2,xs,ys);
+          g2d.drawString(stic1,xs,ys);
         }
-      } else if (isVerticalRotated) {
+      } else { // isVertical
         y = t.y(utic);
         if (isLeft) {
           x = w-1;
@@ -384,30 +397,31 @@ public class TileAxis extends IPanel {
           x += tl+fd;
         }
         int ws = fm.stringWidth(stic);
-        int xs = x;
-        int ys = max(ws,min(h,y+ws/2));
-        g2d.translate(xs,ys);
-        g2d.rotate(-PI/2.0);
-        g2d.drawString(stic,0,0);
-        g2d.rotate(PI/2.0);
-        g2d.translate(-xs,-ys);
-      } else {
-        y = t.y(utic);
-        if (isLeft) {
-          x = w-1;
-          g2d.drawLine(x,y,x-tl,y);
-          x -= tl+fd;
+        if (_isRotated) { // isVerticalRotated
+          int xs = isLeft?x:x+fa;
+          int ys = max(ws,min(h,y+ws/2));
+          g2d.translate(xs,ys);
+          g2d.rotate(-PI/2.0);
+          g2d.drawString(stic,0,0);
+          g2d.rotate(PI/2.0);
+          g2d.translate(-xs,-ys);
+          if (stic1 != null && isLeft) {
+            ws = fm.stringWidth(stic1);
+            xs += -2*fh;
+            ys = max(ws,min(h,y+ws/2));
+            g2d.translate(xs,ys);
+            g2d.rotate(-PI/2.0);
+            g2d.drawString(stic1,0,0);
+            g2d.rotate(PI/2.0);
+            g2d.translate(-xs,-ys);
+          }
         } else {
-          x = 0;
-          g2d.drawLine(x,y,x+tl,y);
-          x += tl+fd;
+          if (ws>wsmax)
+            wsmax = ws;
+          int xs = (isLeft) ? x-ws : x;
+          int ys = max(fa,min(h-1,y+(int)round(0.3*fa)));
+          g2d.drawString(stic,xs,ys);
         }
-        int ws = fm.stringWidth(stic);
-        if (ws>wsmax)
-          wsmax = ws;
-        int xs = (isLeft) ? x-ws : x;
-        int ys = max(fa,min(h-1,y+(int)round(0.3*fa)));
-        g2d.drawString(stic,xs,ys);
       }
 
     } // end for-loop
@@ -416,36 +430,58 @@ public class TileAxis extends IPanel {
     if (_label!=null) { // _label="" if _useCustomTics=true
       if (isHorizontal) {
         if (_useCustomTics) { // true if and only if primary custom tics exist
-          String label = _axisTics.getCustomLabelSecondary();
-          int wl = fm.stringWidth(label);
+          _label = _axisTics.getCustomLabelSecondary();
+          int wl = fm.stringWidth(_label);
           int xl = max(0,min(w-wl,(w-wl)/2));
           int yl = isTop ? h-1-tl-fh-fd : tl+fh+fa;
-          g2d.drawString(label,xl,yl);
-          if (_axisTics.hasCustomTicsPrimary()) {
-            label = _axisTics.getCustomLabelPrimary();
-            wl = fm.stringWidth(label);
-            xl = max(0,min(w-wl,(w-wl)/2));
-            yl = isTop ? h-1-tl-3*fh-fd : tl+fh+fa;
-            g2d.drawString(label,xl,yl);
-          }
+          g2d.drawString(_label,xl,yl);
+          _label = _axisTics.getCustomLabelPrimary();
+          wl = fm.stringWidth(_label);
+          xl = max(0,min(w-wl,(w-wl)/2));
+          yl = isTop ? h-1-tl-3*fh-fd : tl+fh+fa;
+          g2d.drawString(_label,xl,yl);
         } else {
           int wl = fm.stringWidth(_label);
           int xl = max(0,min(w-wl,(w-wl)/2));
           int yl = isTop ? h-1-tl-fh-fd : tl+fh+fa;
           g2d.drawString(_label,xl,yl);
         }
-      } else {
-        int wl = fm.stringWidth(_label);
-        //int xl = isLeft ?
-        //  max(fa,w-1-tl-fd-wsmax-fd-fd-fl) :
-        //  min(w-1-fd,tl+fd+wsmax+fa);
-        int xl = isLeft ? fa+fd : w-1-fd-fd-fl;
-        int yl = max(wl,min(h,(h+wl)/2));
-        g2d.translate(xl,yl);
-        g2d.rotate(-PI/2.0);
-        g2d.drawString(_label,0,0);
-        g2d.rotate(PI/2.0);
-        g2d.translate(-xl,-yl);
+      } else { // isVertical
+        if (_useCustomTics) {
+          _label = _axisTics.getCustomLabelSecondary();
+          int wl = fm.stringWidth(_label);
+          //int xl = isLeft?fa+fd:w-1-fd-fd-fl;
+          int xl = isLeft ? w-1-tl-fh-fd : w-1-fd-fd-fl;
+          int yl = max(wl,min(h,(h+wl)/2));
+          g2d.translate(xl,yl);
+          g2d.rotate(-PI/2.0);
+          g2d.drawString(_label,0,0);
+          g2d.rotate(PI/2.0);
+          g2d.translate(-xl,-yl);
+          if (isLeft) { // no primary key label on right axis
+            _label = _axisTics.getCustomLabelPrimary();
+            wl = fm.stringWidth(_label);
+            xl += -2*fh-fd;
+            yl = max(wl,min(h,(h+wl)/2));
+            g2d.translate(xl,yl);
+            g2d.rotate(-PI/2.0);
+            g2d.drawString(_label,0,0);
+            g2d.rotate(PI/2.0);
+            g2d.translate(-xl,-yl);
+          }
+        } else {
+          int wl = fm.stringWidth(_label);
+          //int xl = isLeft ?
+          //  max(fa,w-1-tl-fd-wsmax-fd-fd-fl) :
+          //  min(w-1-fd,tl+fd+wsmax+fa);
+          int xl = isLeft ? fa+fd : w-1-fd-fd-fl;
+          int yl = max(wl,min(h,(h+wl)/2));
+          g2d.translate(xl,yl);
+          g2d.rotate(-PI/2.0);
+          g2d.drawString(_label,0,0);
+          g2d.rotate(PI/2.0);
+          g2d.translate(-xl,-yl);
+        }
       }
     }
 
@@ -520,11 +556,13 @@ public class TileAxis extends IPanel {
       }
       if (_label!=null)
         width += fm.getHeight();
-    } else {
+        if (_useCustomTics && isLeft())
+          width += 2*fm.getHeight();
+     } else {
       width = 50;
       if (_label!=null)
         width = max(width,fm.stringWidth(_label));
-    }
+     }
     return width;
   }
   // Hack!
@@ -544,7 +582,7 @@ public class TileAxis extends IPanel {
       height = fm.getHeight()+fm.getAscent();
       if (_label!=null) {
         height += fm.getHeight();
-        if (_useCustomTics) {
+        if (_useCustomTics && isTop()) {
           height += 2*fm.getHeight();
         }
       }
