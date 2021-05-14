@@ -45,7 +45,7 @@ import edu.mines.jtk.util.StringUtil;
  * @version 2004.12.27
  * @version 2005.12.23
  * @author Werner M. Heigl, NanoSeis
- * @version 2021.05.13
+ * @version 2021.05.14
  */
 public class TileAxis extends IPanel {
   private static final long serialVersionUID = 1L;
@@ -252,7 +252,6 @@ public class TileAxis extends IPanel {
     if (_useCustomTics)
       _label = ""; // avoid _label=null and ensure painting of custom axis labels in paintToRect()
     revalidate();  // minimum height may change
-    repaint();
   }
 
   public void paintToRect(Graphics2D g2d, int x, int y, int w, int h) {
@@ -279,6 +278,18 @@ public class TileAxis extends IPanel {
       tile.getHorizontalProjector() :
       tile.getVerticalProjector();
     Transcaler t = tile.getTranscaler(w,h);
+
+    // Projectors for customary axis tics
+    if (_useCustomTics) {
+      int n = _axisTics.getCustomTicsPrimary().length;
+      double first = _axisTics.getCustomTicsPrimary()[0];
+      double last = _axisTics.getCustomTicsPrimary()[n-1];
+      _p1 = new Projector(first, last, p.u0(), p.u1());
+      n = _axisTics.getCustomTicsSecondary().length;
+      first = _axisTics.getCustomTicsSecondary()[0];
+      last = _axisTics.getCustomTicsSecondary()[n-1];
+      _p2 = new Projector(first, last, p.u0(), p.u1());
+    }
 
     // Font dimensions.
     Font font = g2d.getFont();
@@ -357,10 +368,9 @@ public class TileAxis extends IPanel {
       String stic = ""; // default & secondary key tick label
       String stic1 = ""; // primary key tick label
       if (_useCustomTics) { // true if and only if primary custom tics exist
-        int stride = (int)round(dticMajor);
-        stic = formatTic(_axisTics.getCustomTicsSecondary()[itic*stride]);
+        stic = formatTic(_p2.v(utic));
         if (_axisTics.hasCustomTicsPrimary())
-          stic1 = formatTic(_axisTics.getCustomTicsPrimary()[itic*stride]);
+          stic1 = formatTic(_p1.v(utic));
       } else {
         stic = formatTic(vtic);
       }
@@ -379,7 +389,7 @@ public class TileAxis extends IPanel {
         int xs = max(0,min(w-ws,x-ws/2));
         int ys = y;
         g2d.drawString(stic,xs,ys);
-        if (stic1 != "") {
+        if (stic1 != "" && isTop) {
           ws = fm.stringWidth(stic1);
           xs = max(0,min(w-ws,x-ws/2));
           ys -= 2*fh;
@@ -438,7 +448,8 @@ public class TileAxis extends IPanel {
           _label = _axisTics.getCustomLabelPrimary();
           wl = fm.stringWidth(_label);
           xl = max(0,min(w-wl,(w-wl)/2));
-          yl = isTop ? h-1-tl-3*fh-fd : tl+fh+fa;
+          //yl = isTop ? h-1-tl-3*fh-fd : tl+fh+fa;
+          yl += isTop ? -2*fh : 0;
           g2d.drawString(_label,xl,yl);
         } else {
           int wl = fm.stringWidth(_label);
@@ -499,7 +510,6 @@ public class TileAxis extends IPanel {
     sb.append("\n " + placement + " Axis:\n");
     sb.append("-----------------\n");
     sb.append(CLASS_NAME + '@' + Integer.toHexString(hashCode()) + "\n");
-    sb.append(_axisTics.toString());
     Projector projector = null;
     if (isHorizontal()) {
       projector = getTile().getHorizontalProjector();
@@ -507,6 +517,11 @@ public class TileAxis extends IPanel {
       projector = getTile().getVerticalProjector();
     }
     sb.append(projector.toString() + "\n");
+    sb.append(_axisTics.toString());
+    if (_useCustomTics) {
+      sb.append("PrimaryTics" + _p1.toString() + "\n");
+      sb.append("SecondaryTics" + _p2.toString() + "\n");
+    }
     return sb.toString();
   }
 
@@ -549,23 +564,23 @@ public class TileAxis extends IPanel {
       ticLabelWidth = maxTicLabelWidth(fm);
     int width;
     if (isVertical()) {
-      if (isVerticalRotated()) {
+      if (_isRotated) {
         width = fm.getAscent()+fm.getHeight();
       } else {
         width = ticLabelWidth+fm.getHeight();
       }
       if (_label!=null)
         width += fm.getHeight();
-        if (_useCustomTics && isLeft())
-          width += 2*fm.getHeight();
-     } else {
+      if (_useCustomTics && isLeft())
+        width += 2*fm.getHeight();
+    } else {
       width = 50;
       if (_label!=null)
         width = max(width,fm.stringWidth(_label));
-     }
+    }
     return width;
   }
-  // Hack!
+  // Hack! - WH: set access to public, allows to dynamically change width 
   public void setWidthMinimum(int widthMinimum) {
     _widthMinimum = widthMinimum;
     revalidate();
@@ -582,9 +597,8 @@ public class TileAxis extends IPanel {
       height = fm.getHeight()+fm.getAscent();
       if (_label!=null) {
         height += fm.getHeight();
-        if (_useCustomTics && isTop()) {
+        if (_useCustomTics && isTop())
           height += 2*fm.getHeight();
-        }
       }
     } else {
       height = 50;
@@ -827,6 +841,7 @@ public class TileAxis extends IPanel {
   private int _ticLabelHeight;
   private AxisTics _axisTics;
   private boolean _useCustomTics;
+  private Projector _p1, _p2;
   private boolean _revalidatePending;
   private int _widthMinimum;
 
