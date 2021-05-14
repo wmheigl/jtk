@@ -255,6 +255,7 @@ public class TileAxis extends IPanel {
   }
 
   public void paintToRect(Graphics2D g2d, int x, int y, int w, int h) {
+
     // If no axis tics, paint nothing.
     if (_axisTics==null)
       return;
@@ -625,6 +626,7 @@ public class TileAxis extends IPanel {
    *  false, otherwise.
    */
   boolean updateAxisTics() {
+
     // Adjacent tile.
     Tile tile = getTile();
     if (tile==null)
