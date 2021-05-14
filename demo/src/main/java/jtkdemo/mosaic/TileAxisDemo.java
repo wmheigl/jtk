@@ -36,7 +36,7 @@ import static edu.mines.jtk.util.ArrayMath.*;
  * Demo of {@link edu.mines.jtk.mosaic.TileAxis} illustrating how to add
  * customary tic labels.
  * @author Werner M. Heigl, NanoSeis
- * @version 2021.05.13
+ * @version 2021.05.14
  */
 public class TileAxisDemo {
 
@@ -52,8 +52,8 @@ public class TileAxisDemo {
   // axis with two sets of custom labels
   public TileAxisDemo() {
 
-    Arrays.setAll(secondaryKeyTics, d -> d+1);
-    Arrays.setAll(primaryKeyTics, d -> Math.floor(d/10));
+    Arrays.setAll(secondaryKeyTics, d -> d+1); // start at 1
+    Arrays.setAll(primaryKeyTics, d -> d+0.1); // there are 10x more secondary tics
 
     PixelsView pxv0 = new PixelsView(s1,s2,vertData);
     pxv0.setColorModel(ColorMap.GRAY);
@@ -102,7 +102,7 @@ public class TileAxisDemo {
   private static final void trace(String s) { System.out.println(s); }
 
   private static final Sampling s1 = new Sampling(151,0.03,-1.3); // vertical axis
-  private static final Sampling s2 = new Sampling(101,1.0,1.0); // horizontal axis
+  private static final Sampling s2 = new Sampling(101,1.0,1.0);   // horizontal axis
   private static final float[][] vertData = sin(rampfloat(0.0f,0.1f,0.1f,151,101)); // fake seismic frame
   private static final float[][] horzData = ArrayMath.transpose(vertData);
 
@@ -110,10 +110,10 @@ public class TileAxisDemo {
   private static final String fastAxisLabel = "Fast Axis";
   private static final String primaryKeyLabel = "Primary Key";
   private static final String secondaryKeyLabel = "Secondary Key";
-  private static double[] primaryKeyTics = new double[101];
+  private static double[] primaryKeyTics = new double[11];
   private static double[] secondaryKeyTics = new double[101];
 
-  private static DataState dataState = DataState.VERTICAL; // vertical data
+  private static DataState dataState = DataState.VERTICAL; // initial vertical data
   private static TicsState ticsState = TicsState.DEFAULT;  // default tics on slow axis
   private static ViewState viewState = ViewState.VERTICAL_DEFAULT;
 
@@ -124,7 +124,7 @@ public class TileAxisDemo {
       @Override
       public void actionPerformed(ActionEvent e) {
         ticsState = (ticsState==TicsState.DEFAULT?TicsState.CUSTOM:TicsState.DEFAULT);
-        updateView(mosaic);
+        nextViewState(mosaic);
       } 
     });
     return b;
@@ -137,7 +137,7 @@ public class TileAxisDemo {
       @Override
       public void actionPerformed(ActionEvent e) {
         dataState = (dataState==DataState.HORIZONTAL?DataState.VERTICAL:DataState.HORIZONTAL);
-        updateView(mosaic);
+        nextViewState(mosaic);
       }
     });
     return b;
@@ -187,54 +187,51 @@ public class TileAxisDemo {
       }
   }
 
-  private static void updateView(Mosaic mosaic) {
+  private static void nextViewState(Mosaic mosaic) {
     TileAxis topAxis = mosaic.getTileAxisTop(0);
     TileAxis leftAxis = mosaic.getTileAxisLeft(0);
     TileAxis rightAxis = mosaic.getTileAxisRight(0);
     PixelsView pxv = (PixelsView)mosaic.getTile(0,0).getTiledView(0);
     viewState = ViewState.valueOfKeys(new Pair(dataState,ticsState));
-    trace(viewState.name());
+    trace("viewState="+viewState.name());
     switch (viewState) {
       case VERTICAL_DEFAULT:
-        topAxis.setCustomTics(false);
-        topAxis.setLabel(slowAxisLabel);
         leftAxis.setCustomTics(false);
         leftAxis.setLabel(fastAxisLabel);
-        leftAxis.setVerticalAxisRotated(false);
+        topAxis.setCustomTics(false);
+        topAxis.setLabel(slowAxisLabel);
         rightAxis.setLabel(fastAxisLabel);
+        rightAxis.setCustomTics(false);
         pxv.set(s1,s2,vertData);
         break;
       case VERTICAL_CUSTOM:
         leftAxis.setCustomTics(false);
         leftAxis.setLabel(fastAxisLabel);
-        leftAxis.setVerticalAxisRotated(false);
         topAxis.getAxisTics().setCustomTicsPrimary(primaryKeyTics, primaryKeyLabel);
         topAxis.getAxisTics().setCustomTicsSecondary(secondaryKeyTics, secondaryKeyLabel);
         topAxis.setCustomTics(true);
         rightAxis.setLabel(fastAxisLabel);
-        rightAxis.setVerticalAxisRotated(false);
+        rightAxis.setCustomTics(false);
         pxv.set(s1,s2,vertData);
         break;
       case HORIZONTAL_DEFAULT:
+        leftAxis.setCustomTics(false);
+        leftAxis.setLabel(slowAxisLabel);
         topAxis.setCustomTics(false);
         topAxis.setLabel(fastAxisLabel);
-        leftAxis.setCustomTics(false);
-        leftAxis.setVerticalAxisRotated(false);
-        leftAxis.setLabel(slowAxisLabel);
+        rightAxis.setCustomTics(false);
         rightAxis.setLabel(slowAxisLabel);
-        rightAxis.setVerticalAxisRotated(false);
         pxv.set(s2,s1,horzData);
         break;
       case HORIZONTAL_CUSTOM:
-        topAxis.setCustomTics(false);
-        topAxis.setLabel(fastAxisLabel);
         leftAxis.getAxisTics().setCustomTicsPrimary(primaryKeyTics, primaryKeyLabel);
         leftAxis.getAxisTics().setCustomTicsSecondary(secondaryKeyTics, secondaryKeyLabel);
-        leftAxis.setVerticalAxisRotated(true);
         leftAxis.setCustomTics(true);
+        topAxis.setCustomTics(false);
+        topAxis.setLabel(fastAxisLabel);
+        rightAxis.getAxisTics().setCustomTicsPrimary(primaryKeyTics, primaryKeyLabel);
         rightAxis.getAxisTics().setCustomTicsSecondary(secondaryKeyTics, secondaryKeyLabel);
         rightAxis.setCustomTics(true);
-        rightAxis.setVerticalAxisRotated(true);
         pxv.set(s2,s1,horzData);
         break;
       default:
